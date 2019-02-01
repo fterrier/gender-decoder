@@ -4,6 +4,7 @@ from app import app, db, email_sender
 from app.forms import JobAdForm
 from app.models import JobAd
 from app.text import Text
+from urllib.parse import urlparse, urlunparse
 
 def send_email(recipient, data):
     app.logger.info('Sending email to %s, with job ad: %s', recipient, data['hash'])
@@ -50,3 +51,12 @@ def results(ad_hash):
 @app.errorhandler(404)
 def page_not_found(error):
     return render_template('404.html'), 404
+
+@app.before_request
+def redirect_nonwww():
+    """Redirect www requests to non-www."""
+    urlparts = urlparse(request.url)
+    if urlparts.netloc == 'www.debias.witty.works':
+        urlparts_list = list(urlparts)
+        urlparts_list[1] = 'debias.witty.works'
+        return redirect(urlunparse(urlparts_list), code=301)
