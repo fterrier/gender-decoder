@@ -8,7 +8,7 @@ from config import basedir
 from app import app, db
 
 from app.models import JobAd
-from app.text import Text, de_hyphen_non_coded_words, clean_up_text
+from app.text import Text, de_hyphen_non_coded_words, clean_up_text, clean_up_word_list
 from app import views
 
 from unittest.mock import patch, Mock
@@ -19,6 +19,7 @@ class DecoderTest(TestCase):
         app.config['TESTING'] = True
         app.config['WTF_CSRF_ENABLED'] = False
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'test.db')
+        app.config['PRESERVE_CONTEXT_ON_EXCEPTION'] = False
 
         return app
 
@@ -30,47 +31,47 @@ class DecoderTest(TestCase):
         db.drop_all()
 
     def test_clean_up_word_list(self):
-        caps = Text("Sharing is as important as ambition")
-        self.assertEqual(caps.clean_up_word_list(),
+        caps = clean_up_text("Sharing is as important as ambition")
+        self.assertEqual(clean_up_word_list(caps),
             ['sharing', 'is', 'as', 'important', 'as', 'ambition'])
-        tab = Text("Qualities: sharing\tambition")
-        self.assertEqual(tab.clean_up_word_list(),
+        tab = clean_up_text("Qualities: sharing\tambition")
+        self.assertEqual(clean_up_word_list(tab),
             ['qualities', 'sharing', 'ambition'])
-        semicolon = Text("Sharing;ambitious")
-        self.assertEqual(semicolon.clean_up_word_list(),
+        semicolon = clean_up_text("Sharing;ambitious")
+        self.assertEqual(clean_up_word_list(semicolon),
             ['sharing', 'ambitious'])
-        slash = Text(u"Sharing/ambitious")
-        self.assertEqual(slash.clean_up_word_list(), ['sharing', 'ambitious'])
-        hyphen = Text(u"Sharing, co-operative, 'servant-leader'")
-        self.assertEqual(hyphen.clean_up_word_list(),
+        slash = clean_up_text(u"Sharing/ambitious")
+        self.assertEqual(clean_up_word_list(slash), ['sharing', 'ambitious'])
+        hyphen = clean_up_text(u"Sharing, co-operative, 'servant-leader'")
+        self.assertEqual(clean_up_word_list(hyphen),
             ['sharing', 'co-operative', 'servant', 'leader'])
-        mdash = Text(u"Sharing—ambitious")
-        self.assertEqual(mdash.clean_up_word_list(), ['sharing', 'ambitious'])
-        bracket = Text(u"Sharing(ambitious) and (leader)")
-        self.assertEqual(bracket.clean_up_word_list(), ['sharing', 'ambitious',
+        mdash = clean_up_text(u"Sharing—ambitious")
+        self.assertEqual(clean_up_word_list(mdash), ['sharing', 'ambitious'])
+        bracket = clean_up_text(u"Sharing(ambitious) and (leader)")
+        self.assertEqual(clean_up_word_list(bracket), ['sharing', 'ambitious',
             'and', 'leader'])
-        sqbracket = Text(u"Sharing[ambitious] and [leader]")
-        self.assertEqual(sqbracket.clean_up_word_list(), ['sharing',
+        sqbracket = clean_up_text(u"Sharing[ambitious] and [leader]")
+        self.assertEqual(clean_up_word_list(sqbracket), ['sharing',
             'ambitious', 'and', 'leader'])
-        abracket = Text(u"Sharing<ambitious> and <leader>")
-        self.assertEqual(abracket.clean_up_word_list(), ['sharing',
+        abracket = clean_up_text(u"Sharing<ambitious> and <leader>")
+        self.assertEqual(clean_up_word_list(abracket), ['sharing',
             'ambitious', 'and', 'leader'])
-        space = Text(u"Sharing ambitious ")
-        self.assertEqual(space.clean_up_word_list(), ['sharing', 'ambitious'])
-        amp = Text(u"Sharing&ambitious, empathy&kindness,")
-        self.assertEqual(amp.clean_up_word_list(),
+        space = clean_up_text(u"Sharing ambitious ")
+        self.assertEqual(clean_up_word_list(space), ['sharing', 'ambitious'])
+        amp = clean_up_text(u"Sharing&ambitious, empathy&kindness,")
+        self.assertEqual(clean_up_word_list(amp),
             ['sharing', 'ambitious', 'empathy', 'kindness'])
-        asterisk = Text(u"Sharing&ambitious*, empathy*kindness,")
-        self.assertEqual(asterisk.clean_up_word_list(),
+        asterisk = clean_up_text(u"Sharing&ambitious*, empathy*kindness,")
+        self.assertEqual(clean_up_word_list(asterisk),
             ['sharing', 'ambitious', 'empathy', 'kindness'])
-        atandquestion = Text(u"Lead \"Developer\" Who is Connect@HBS? We ")
-        self.assertEqual(atandquestion.clean_up_word_list(),
+        atandquestion = clean_up_text(u"Lead \"Developer\" Who is Connect@HBS? We ")
+        self.assertEqual(clean_up_word_list(atandquestion),
             ['lead', 'developer', 'who', 'is', 'connect', 'hbs', 'we'])
-        exclaim = Text(u"Lead Developer v good!")
-        self.assertEqual(exclaim.clean_up_word_list(),
+        exclaim = clean_up_text(u"Lead Developer v good!")
+        self.assertEqual(clean_up_word_list(exclaim),
             ['lead', 'developer', 'v', 'good'])
-        curls = Text(u"“Lead” ‘Developer’ v good!")
-        self.assertEqual(exclaim.clean_up_word_list(),
+        curls = clean_up_text(u"“Lead” ‘Developer’ v good!")
+        self.assertEqual(clean_up_word_list(curls),
             ['lead', 'developer', 'v', 'good'])
 
     def test_extract_coded_words(self):
@@ -90,6 +91,18 @@ class DecoderTest(TestCase):
         self.assertEqual(j3.masculine_word_count, 0)
         self.assertEqual(j3.feminine_coded_words, "empathy,kindness")
         self.assertEqual(j3.feminine_word_count, 2)
+
+    def test_extract_coded_sentences(self):
+        j1 = Text(u"here is an Alpha Male oh yeah")
+        self.assertEqual(j1.masculine_coded_words, "alpha male")
+        self.assertEqual(j1.masculine_word_count, 1)
+        self.assertEqual(j1.feminine_coded_words, "")
+        self.assertEqual(j1.feminine_word_count, 0)
+        j1 = Text(u"la prise-en-Charge de l'equipe")
+        self.assertEqual(j1.feminine_coded_words, "prise en charge")
+        self.assertEqual(j1.feminine_word_count, 1)
+        self.assertEqual(j1.masculine_coded_words, "")
+        self.assertEqual(j1.masculine_word_count, 0)
 
     def test_assess_coding_neutral(self):
         j1 = Text("irrelevant words")

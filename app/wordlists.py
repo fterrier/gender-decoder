@@ -169,6 +169,14 @@ masculine_coded_words = [
     "zielstrebig"
 ]
 
+feminine_sentences = [
+    "prise en charge"
+]
+
+masculine_sentences = [
+    "alpha male"
+]
+
 hyphenated_coded_words = [
     "co-operat",
     "inter-personal",
