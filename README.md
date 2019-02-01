@@ -76,3 +76,4 @@ Then apply it to your database:
 ```
 env $(cat .ENV | xargs) python manage.py db upgrade
 ```
+
